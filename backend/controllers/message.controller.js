@@ -1,10 +1,14 @@
 import Conversation from "../models/conversation.models.js";
 import Message from "../models/message.models.js";
+import { getReceiverSocketId, io } from "../socket/socket.js";
+import { v2 as cloudinary } from 'cloudinary';
+
 
 
 export const sendMessage = async (req, res) => {
   try {
     const { message } = req.body;
+    let { img } = req.body;
     const { id: receiverId } = req.params;
     const senderId = req.user._id;
 
@@ -20,21 +24,33 @@ export const sendMessage = async (req, res) => {
       });
     }
 
+    
+    if (img) {
+      const uploadedResponse = await cloudinary.uploader.upload(img, {resource_type : "auto"});
+      img = uploadedResponse.secure_url;
+    }
+
     // Create a new message
     const newMessage = new Message({
       senderId: senderId,
       receiverId: receiverId,
-      message: message
+      message: message,
+      img: img
     });
 
 
     // Add the new message to the conversation
     conversation.messages.push(newMessage._id);
 
-    
-    // Soket.io functionality
-
     await Promise.all([newMessage.save(), conversation.save()]);
+
+    const receiverSocketId = getReceiverSocketId(receiverId);
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("newMessage", newMessage);
+    }
+
+
+
     // Return the new message as the response
     res.status(201).json(newMessage);
   } catch (error) {
