@@ -5,25 +5,18 @@ import notificationSound from '../assets/sounds/sound.mp3';
 
 const useListenMessages = () => {
     const { socket } = useSocketContext();
-    const { selectedConversation, messages, setMessages } = useConversation();
+    const { messages, setMessages,selectedConversation } = useConversation();
     
     useEffect(() => {
-        const handleNewMessage = (newMessage) => {
-            // Check if the message belongs to the currently selected conversation
-            if (newMessage.conversationId === selectedConversation?._id) {
-                newMessage.shouldShake = true;  // Add any effects like shaking
-                const sound = new Audio(notificationSound);
-                sound.play();
-                // Update the messages for the current conversation
-                setMessages([...messages, newMessage]);
-            }
-        };
+        socket?.on("newMessage", (newMessage) => {
+            newMessage.shouldShake = true;
+            const sound = new Audio(notificationSound);
+            sound.play();
+            setMessages([...messages, newMessage]);
+        });
 
-        socket?.on("newMessage", handleNewMessage);
-
-        return () => socket?.off("newMessage", handleNewMessage);
-    }, [socket, selectedConversation, setMessages, messages]);
+        return () => socket?.off("newMessage");
+    }, [socket, setMessages, messages]);
 }
 
-export default useListenMessages;
-
+export default useListenMessages
